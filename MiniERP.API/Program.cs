@@ -35,6 +35,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+// Global Hata Yakalayýcý Middleware'imizi devreye alýyoruz.
+// Artýk projenin hiçbir yerinde try-catch yazmamýza gerek yok!
+app.UseMiddleware<MiniERP.API.Middlewares.ErrorHandlerMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
