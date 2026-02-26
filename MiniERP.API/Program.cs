@@ -1,6 +1,6 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MiniERP.Application.Interfaces;
@@ -8,7 +8,6 @@ using MiniERP.Application.Interfaces.Repositories;
 using MiniERP.Infrastructure.Context;
 using MiniERP.Infrastructure.Repositories;
 using MiniERP.Infrastructure.UnitOfWork;
-using System;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,8 +17,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // 2. DEPENDENCY INJECTION (Baðýmlýlýk Enjeksiyonu) Ayarlarý
-// "AddScoped" ne demek? (Mülakat Sorusu!): Her yeni HTTP isteði (Request) geldiðinde bu sýnýftan 1 tane yeni nesne üret, 
-// istek bittiðinde (Response dönünce) nesneyi çöpe at demektir. Web projeleri için en güvenli yöntemdir.
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
@@ -31,11 +28,17 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 // AutoMapper'ý manuel ve en garantili yöntemle sisteme tanýtýyoruz:
 builder.Services.AddAutoMapper(config =>
 {
-    // Hangi profil sýnýfýný kullanacaðýný açýkça belirtiyoruz
     config.AddProfile<MiniERP.Application.Mappings.MappingProfile>();
 });
+
+// FluentValidation'ý sisteme MODERN yöntemle tanýtýyoruz (AutoValidation YOK):
+builder.Services.AddValidatorsFromAssemblyContaining<MiniERP.Application.Validators.ProductCreateDtoValidator>();
+
+// Sadece Controllers'ý ekliyoruz
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// 3. JWT KÝMLÝK DOÐRULAMA AYARLARI
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -51,7 +54,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// 2. SWAGGER ÜZERÝNE "AUTHORIZE" (KÝLÝT) BUTONUNU EKLEME
+// 4. SWAGGER ÜZERÝNE "AUTHORIZE" (KÝLÝT) BUTONUNU EKLEME
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "MiniERP API", Version = "v1" });
@@ -83,8 +86,9 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+// 5. MÝDDLEWARE (Ara Yazýlým) BORU HATTI
 // Global Hata Yakalayýcý Middleware'imizi devreye alýyoruz.
-// Artýk projenin hiçbir yerinde try-catch yazmamýza gerek yok!
 app.UseMiddleware<MiniERP.API.Middlewares.ErrorHandlerMiddleware>();
 
 if (app.Environment.IsDevelopment())
@@ -93,10 +97,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseAuthentication(); // Kimlik Kontrolü
-app.UseAuthorization();  // Yetki Kontrolü
 app.UseHttpsRedirection();
-app.UseAuthorization();
+
+// Güvenlik Kapýlarý (Sýrasý Çok Önemlidir!)
+app.UseAuthentication(); // Önce Kimliðini Doðrula (Kimsin?)
+app.UseAuthorization();  // Sonra Yetkini Kontrol Et (Buna Ýznin Var Mý?)
+
 app.MapControllers();
 
 app.Run();

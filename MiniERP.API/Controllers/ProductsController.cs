@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MiniERP.Application.DTOs.Products;
@@ -53,18 +54,30 @@ namespace MiniERP.API.Controllers
                 Data = productsDto // Asıl ürün verimiz
             });
         }
+
         [Authorize]
         [HttpPost]
-        public async Task<IActionResult> Create(ProductCreateDto productCreateDto) // Artık Product değil, ProductCreateDto bekliyoruz!
+        // 🌟 GÜNCELLEME: IValidator'ı metodun içine enjekte ettik
+        public async Task<IActionResult> Create(ProductCreateDto productCreateDto, [FromServices] IValidator<ProductCreateDto> validator)
         {
-            // 1. Kullanıcıdan gelen "eksik" veriyi (DTO), veritabanına uyacak gerçek nesneye (Entity) çevir
+            // 🌟 1. Kapıdaki muhafıza "Bu veriyi kontrol et" diyoruz
+            var validationResult = await validator.ValidateAsync(productCreateDto);
+
+            // 🌟 2. Eğer kurallara uymayan bir şey varsa, içeri hiç almadan direkt hataları fırlat!
+            if (!validationResult.IsValid)
+            {
+                // Gelen hataları şık bir liste halinde kullanıcıya dönüyoruz
+                return BadRequest(validationResult.Errors.Select(e => e.ErrorMessage));
+            }
+
+            // 3. Kullanıcıdan gelen geçerli veriyi (DTO), veritabanına uyacak gerçek nesneye (Entity) çevir
             var product = _mapper.Map<Product>(productCreateDto);
 
-            // 2. Veritabanına ekle ve kaydet (Id ve CreatedDate burada otomatik dolacak)
+            // 4. Veritabanına ekle ve kaydet (Id ve CreatedDate burada otomatik dolacak)
             await _unitOfWork.Products.AddAsync(product);
             await _unitOfWork.SaveChangesAsync();
 
-            // 3. Kullanıcıya "Başarıyla eklendi" derken, oluşan Id ve Tarih bilgisini de göstermek için tekrar DTO'ya çevir
+            // 5. Kullanıcıya "Başarıyla eklendi" derken, oluşan Id ve Tarih bilgisini de göstermek için tekrar DTO'ya çevir
             var resultDto = _mapper.Map<ProductDto>(product);
 
             return Ok(resultDto);

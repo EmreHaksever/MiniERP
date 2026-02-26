@@ -27,30 +27,29 @@ namespace MiniERP.API.Controllers
             var order = _mapper.Map<Order>(orderCreateDto);
             order.OrderNumber = "ORD-" + new Random().Next(1000, 9999);
 
-            // 🌟 1. STOK KONTROLÜ VE DÜŞME İŞLEMİ
             foreach (var item in order.OrderItems)
             {
-                // Önce sepetteki ürünü veritabanından bul
+                // 1. Ürünü veritabanından bul
                 var product = await _unitOfWork.Products.GetByIdAsync(item.ProductId);
+                if (product == null) return BadRequest($"Hata: {item.ProductId} ID'li ürün bulunamadı!");
 
-                if (product == null)
-                    return BadRequest($"Hata: {item.ProductId} ID'li ürün bulunamadı!");
-
-                // Eğer müşterinin istediği adet, depodaki stoktan fazlaysa hata dön!
+                // 2. Stok Kontrolü
                 if (product.StockQuantity < item.Quantity)
-                    return BadRequest($"Hata: {product.Name} ürünü için yeterli stok yok! Mevcut Stok: {product.StockQuantity}");
+                    return BadRequest($"Hata: {product.Name} ürünü için yeterli stok yok!");
 
-                // Stok yeterliyse, depodaki miktarı düş ve güncelle
+                // 🌟 3. İŞTE O MÜKEMMEL SENIOR DOKUNUŞU: Fiyatı güvenlik için veritabanından alıyoruz!
+                item.UnitPrice = product.Price;
+
+                // 4. Stoku düş
                 product.StockQuantity -= item.Quantity;
                 _unitOfWork.Products.Update(product);
             }
 
-            // Siparişin toplam tutarını hesapla
+            // Siparişin toplam tutarını hesapla (Artık güvenli fiyatlarla hesaplanıyor)
             order.TotalAmount = order.OrderItems.Sum(item => item.Quantity * item.UnitPrice);
 
             await _unitOfWork.Orders.AddAsync(order);
 
-            // 🌟 2. MÜŞTERİ CARİ BORÇ GÜNCELLEMESİ (Zaten yazmıştık)
             var customer = await _unitOfWork.Customers.GetByIdAsync(order.CustomerId);
             if (customer != null)
             {
@@ -58,7 +57,6 @@ namespace MiniERP.API.Controllers
                 _unitOfWork.Customers.Update(customer);
             }
 
-            // Tüm bu işlemleri (Stok düşme, Sipariş ekleme, Borç artırma) TEK BİR PAKET olarak kaydet
             await _unitOfWork.SaveChangesAsync();
 
             var resultDto = _mapper.Map<OrderDto>(order);
