@@ -24,19 +24,33 @@ namespace MiniERP.API.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(OrderCreateDto orderCreateDto)
         {
-            // 1. DTO'yu gerçek Order nesnesine çevir
             var order = _mapper.Map<Order>(orderCreateDto);
-
-            // 2. Rastgele bir sipariş numarası üret (Örn: ORD-4821)
             order.OrderNumber = "ORD-" + new Random().Next(1000, 9999);
 
-            // 3. Siparişin toplam tutarını hesapla (Sepetteki her ürünün Adet * Birim Fiyatı)
+            // 🌟 1. STOK KONTROLÜ VE DÜŞME İŞLEMİ
+            foreach (var item in order.OrderItems)
+            {
+                // Önce sepetteki ürünü veritabanından bul
+                var product = await _unitOfWork.Products.GetByIdAsync(item.ProductId);
+
+                if (product == null)
+                    return BadRequest($"Hata: {item.ProductId} ID'li ürün bulunamadı!");
+
+                // Eğer müşterinin istediği adet, depodaki stoktan fazlaysa hata dön!
+                if (product.StockQuantity < item.Quantity)
+                    return BadRequest($"Hata: {product.Name} ürünü için yeterli stok yok! Mevcut Stok: {product.StockQuantity}");
+
+                // Stok yeterliyse, depodaki miktarı düş ve güncelle
+                product.StockQuantity -= item.Quantity;
+                _unitOfWork.Products.Update(product);
+            }
+
+            // Siparişin toplam tutarını hesapla
             order.TotalAmount = order.OrderItems.Sum(item => item.Quantity * item.UnitPrice);
 
-            // Siparişi veritabanına ekle
             await _unitOfWork.Orders.AddAsync(order);
 
-            // 🌟 SENIOR ERP DOKUNUŞU: Müşterinin cari borcunu (CurrentBalance) güncelle!
+            // 🌟 2. MÜŞTERİ CARİ BORÇ GÜNCELLEMESİ (Zaten yazmıştık)
             var customer = await _unitOfWork.Customers.GetByIdAsync(order.CustomerId);
             if (customer != null)
             {
@@ -44,7 +58,7 @@ namespace MiniERP.API.Controllers
                 _unitOfWork.Customers.Update(customer);
             }
 
-            // Tüm işlemleri tek bir Transaction (işlem bütünlüğü) olarak kaydet
+            // Tüm bu işlemleri (Stok düşme, Sipariş ekleme, Borç artırma) TEK BİR PAKET olarak kaydet
             await _unitOfWork.SaveChangesAsync();
 
             var resultDto = _mapper.Map<OrderDto>(order);
