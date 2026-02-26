@@ -4,6 +4,16 @@ namespace MiniERP.Domain.Entities
 {
     public class Order : BaseEntity
     {
+        // --- YENİ EKLENEN ALANLAR (DTO ve Controller uyumu için) ---
+
+        // Siparişi tanımlayan eşsiz numara (Örn: ORD-4821)
+        public string OrderNumber { get; set; } = string.Empty;
+
+        // Beklenen teslim tarihi (Zorunlu değil, o yüzden DateTime? yapıyoruz)
+        public DateTime? ExpectedDeliveryDate { get; set; }
+
+        // --- SENİN MEVCUT VE HARİKA KODLARIN ---
+
         // Satışın hangi müşteriye ait olduğunu tutan Yabancı Anahtar (Foreign Key)
         public Guid CustomerId { get; set; }
 

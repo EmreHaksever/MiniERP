@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using MiniERP.Application.DTOs.Customers;
+using MiniERP.Application.DTOs.Orders;
 using MiniERP.Application.DTOs.Products;
 using MiniERP.Domain.Entities;
 
@@ -19,6 +20,13 @@ namespace MiniERP.Application.Mappings
             // Müşteri (Customer) çeviri kuralları
             CreateMap<Customer, CustomerDto>().ReverseMap();
             CreateMap<CustomerCreateDto, Customer>();
+
+            // Sipariş (Order) ve Sipariş Kalemi (OrderItem) çeviri kuralları
+            CreateMap<Order, OrderDto>().ReverseMap();
+            CreateMap<OrderCreateDto, Order>();
+
+            CreateMap<OrderItem, OrderItemDto>().ReverseMap();
+            CreateMap<OrderItemCreateDto, OrderItem>();
         }
     }
 }
