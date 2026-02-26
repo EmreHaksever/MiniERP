@@ -21,16 +21,37 @@ namespace MiniERP.API.Controllers
             _mapper = mapper;
         }
 
+        // URL'den "page" (sayfa) ve "pageSize" (sayfa başına kayıt) parametrelerini alıyoruz. 
+        // Eğer kullanıcı bir şey göndermezse varsayılan olarak 1. sayfa ve 10 kayıt diyoruz.
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
-            // 1. Veritabanından ham verileri (Entity) çek
+            // 1. Tüm ürünleri çek
             var products = await _unitOfWork.Products.GetAllAsync();
 
-            // 2. Ham verileri, dışarıya açacağımız güvenli formata (ProductDto) çevir
-            var productsDto = _mapper.Map<IEnumerable<ProductDto>>(products);
+            // 2. Toplam ürün sayısını bul (Arayüzde sayfa numaralarını çizmek için lazım olacak)
+            var totalRecords = products.Count();
 
-            return Ok(productsDto);
+            // 🌟 3. SAYFALAMA MANTIĞI (LINQ)
+            // Skip: Önceki sayfalardaki kayıtları atla
+            // Take: Sadece bu sayfanın boyutu kadar kayıt al
+            var pagedProducts = products
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            // 4. DTO'ya çevir
+            var productsDto = _mapper.Map<IEnumerable<ProductDto>>(pagedProducts);
+
+            // 5. Geriye sadece veriyi değil, sayfalama bilgilerini de (Meta Veri) dönüyoruz!
+            return Ok(new
+            {
+                TotalRecords = totalRecords,
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling((double)totalRecords / pageSize), // Toplam kaç sayfa var?
+                Data = productsDto // Asıl ürün verimiz
+            });
         }
         [Authorize]
         [HttpPost]
