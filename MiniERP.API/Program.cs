@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using MiniERP.Application.Interfaces;
 using MiniERP.Application.Interfaces.Repositories;
 using MiniERP.Infrastructure.Context;
@@ -23,6 +24,12 @@ builder.Services.AddScoped<IOrderRepository, OrderRepository>();
 // UnitOfWork'ü sisteme tanýtýyoruz
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+// AutoMapper'ý manuel ve en garantili yöntemle sisteme tanýtýyoruz:
+builder.Services.AddAutoMapper(config =>
+{
+    // Hangi profil sýnýfýný kullanacaðýný açýkça belirtiyoruz
+    config.AddProfile<MiniERP.Application.Mappings.MappingProfile>();
+});
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

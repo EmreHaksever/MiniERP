@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
+using MiniERP.Application.DTOs.Products;
 using MiniERP.Application.Interfaces;
 using MiniERP.Domain.Entities;
 
@@ -9,36 +11,49 @@ namespace MiniERP.API.Controllers
     public class ProductsController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IMapper _mapper; // Çevirmenimizi tanımlıyoruz
 
-        // 1. EKSİK OLAN KISIM: Constructor (Yapıcı Metot)
-        public ProductsController(IUnitOfWork unitOfWork)
+        // IMapper'ı içeri enjekte ediyoruz
+        public ProductsController(IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
+            _mapper = mapper;
         }
 
-        // 2. EKSİK OLAN KISIM: GET İşlemi (Ürünleri Listeleme)
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
+            // 1. Veritabanından ham verileri (Entity) çek
             var products = await _unitOfWork.Products.GetAllAsync();
-            return Ok(products);
+
+            // 2. Ham verileri, dışarıya açacağımız güvenli formata (ProductDto) çevir
+            var productsDto = _mapper.Map<IEnumerable<ProductDto>>(products);
+
+            return Ok(productsDto);
         }
 
-        // 3. EKSİK OLAN KISIM: POST İşlemi (Ürün Ekleme)
         [HttpPost]
-        public async Task<IActionResult> Create(Product product)
+        public async Task<IActionResult> Create(ProductCreateDto productCreateDto) // Artık Product değil, ProductCreateDto bekliyoruz!
         {
+            // 1. Kullanıcıdan gelen "eksik" veriyi (DTO), veritabanına uyacak gerçek nesneye (Entity) çevir
+            var product = _mapper.Map<Product>(productCreateDto);
+
+            // 2. Veritabanına ekle ve kaydet (Id ve CreatedDate burada otomatik dolacak)
             await _unitOfWork.Products.AddAsync(product);
             await _unitOfWork.SaveChangesAsync();
-            return Ok(product);
+
+            // 3. Kullanıcıya "Başarıyla eklendi" derken, oluşan Id ve Tarih bilgisini de göstermek için tekrar DTO'ya çevir
+            var resultDto = _mapper.Map<ProductDto>(product);
+
+            return Ok(resultDto);
         }
 
-        // 4. EKSİK OLAN KISIM: GET İşlemi (Kritik Stokları Listeleme)
         [HttpGet("critical-stock")]
         public async Task<IActionResult> GetCriticalStock()
         {
             var products = await _unitOfWork.Products.GetProductsWithCriticalStockAsync();
-            return Ok(products);
+            var productsDto = _mapper.Map<IEnumerable<ProductDto>>(products);
+            return Ok(productsDto);
         }
     }
 }
