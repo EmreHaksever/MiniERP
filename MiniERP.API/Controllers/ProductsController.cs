@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MiniERP.Application.DTOs.Products;
 using MiniERP.Application.Interfaces;
@@ -31,7 +32,7 @@ namespace MiniERP.API.Controllers
 
             return Ok(productsDto);
         }
-
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> Create(ProductCreateDto productCreateDto) // Artık Product değil, ProductCreateDto bekliyoruz!
         {
