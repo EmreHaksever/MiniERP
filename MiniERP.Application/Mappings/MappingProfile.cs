@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using MiniERP.Application.DTOs.Customers;
 using MiniERP.Application.DTOs.Products;
 using MiniERP.Domain.Entities;
 
@@ -14,6 +15,10 @@ namespace MiniERP.Application.Mappings
 
             // Kullanıcıdan gelen ProductCreateDto, veritabanına yazılacak Product'a dönüşebilir
             CreateMap<ProductCreateDto, Product>();
+
+            // Müşteri (Customer) çeviri kuralları
+            CreateMap<Customer, CustomerDto>().ReverseMap();
+            CreateMap<CustomerCreateDto, Customer>();
         }
     }
 }

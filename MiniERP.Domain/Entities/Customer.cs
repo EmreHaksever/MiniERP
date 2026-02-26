@@ -5,8 +5,14 @@ namespace MiniERP.Domain.Entities
     public class Customer : BaseEntity
     {
         public string CompanyName { get; set; } = string.Empty;
+
+        // 1. DTO ile eşleşmesi için yeni eklediğimiz alan:
+        public string ContactName { get; set; } = string.Empty;
+
+        // 2. DTO ile eşleşmesi için "ContactEmail" adını "Email" olarak değiştirdik:
+        public string? Email { get; set; }
+
         public string? TaxNumber { get; set; }
-        public string? ContactEmail { get; set; }
         public string? PhoneNumber { get; set; }
 
         // --- ERP Mantığı (Business Logic) İçin Gerekli Alanlar ---
